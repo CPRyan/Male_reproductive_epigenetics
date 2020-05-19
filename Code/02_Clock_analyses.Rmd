@@ -1,0 +1,130 @@
+---
+title: "01_Clock_Analyses"
+author: "Calen P. Ryan"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    code_folding: hide
+    
+---
+Originally written May 17th, 2020
+
+# Setup
+
+---
+
+## Setup: Options 
+```{r}
+knitr::opts_chunk$set(tidy = TRUE, fig.width=10, fig.height=8) 
+```
+
+
+## Setup: Packages - messages hidden
+```{r, warning = F, message = F}
+library(tidyverse) # The tidyverse, baby
+library(haven) # Used to load different datatypes, like .DTA or .dat
+library(readr) # Also used to read different data types
+library(lubridate) # Working with dates
+library(sjlabelled) # as_factor, as_character
+library(vcd)## used for estimating goodness of fit for poisson distribution
+library(here)
+```
+
+
+# Testosterone Clock Analysis
+
+```{r}
+
+source(here::here("/Code/survey_measures", "testost_clock_analysis.R"))
+
+rbind(IEAA_t, EEAA_t, grim_t, pheno_t) %>% 
+  mutate(sigs = if_else(adjusted < 0.05, "significant", "not-significant") ) %>% 
+  ggplot(., aes(x = estimate, y = variable, col = sigs))+
+  geom_point()+
+  scale_color_manual(values = c("gray", "red"))+
+  #  scale_x_continuous(limits = c(-0.7, 0.7))+
+  geom_vline(xintercept = 0, col = "gray", linetype = "dashed")+
+  geom_pointrange(aes(xmin = estimate - std.error , xmax = estimate + std.error))+
+  ggpubr::theme_classic2()+
+  facet_wrap(~clock_val)+
+  theme(legend.position="top")
+
+
+rbind(CD4T_t, CD8T_t, Mono_t, NK_t, PlasmaBlast_t, Gran_t) %>% 
+  mutate(sigs = if_else(adjusted < 0.05, "significant", "not-significant") ) %>% 
+  ggplot(., aes(x = estimate, y = variable, col = sigs))+
+  geom_point()+
+  scale_color_manual(values = c("gray", "red"))+
+  #  scale_x_continuous(limits = c(-0.7, 0.7))+
+  geom_vline(xintercept = 0, col = "gray", linetype = "dashed")+
+  geom_pointrange(aes(xmin = estimate - std.error , xmax = estimate + std.error))+
+  ggpubr::theme_classic2()+
+  facet_wrap(~clock_val)+
+  theme(legend.position="top")
+```
+
+# Repro Clock Analysis
+
+```{r}
+source(here::here("/Code/survey_measures", "repro_clock_analyses.R"))
+
+
+rbind(IEAA_r, EEAA_r, grim_r, pheno_r) %>% 
+  mutate(sigs = if_else(adjusted < 0.05, "significant", "not-significant") ) %>% 
+  ggplot(., aes(x = estimate, y = variable, col = sigs))+
+  geom_point()+
+  scale_color_manual(values = c("gray", "red"))+
+  #  scale_x_continuous(limits = c(-0.7, 0.7))+
+  geom_vline(xintercept = 0, col = "gray", linetype = "dashed")+
+  geom_pointrange(aes(xmin = estimate - std.error , xmax = estimate + std.error))+
+  ggpubr::theme_classic2()+
+  facet_wrap(~clock_val)+
+  theme(legend.position="top")
+
+
+rbind(CD4T_r, CD8T_r, Mono_r, NK_r, PlasmaBlast_r, Gran_r) %>% 
+  mutate(sigs = if_else(adjusted < 0.05, "significant", "not-significant") ) %>% 
+  ggplot(., aes(x = estimate, y = variable, col = sigs))+
+  geom_point()+
+  scale_color_manual(values = c("gray", "red"))+
+  #  scale_x_continuous(limits = c(-0.7, 0.7))+
+  geom_vline(xintercept = 0, col = "gray", linetype = "dashed")+
+  geom_pointrange(aes(xmin = estimate - std.error , xmax = estimate + std.error))+
+  ggpubr::theme_classic2()+
+  facet_wrap(~clock_val)+
+  theme(legend.position="top")
+
+```
+
+# Anthro Clock Analysis
+
+```{r}
+source(here::here("/Code/survey_measures", "anthro_clock_analyses.R"))
+
+
+rbind(IEAA_a, EEAA_a, grim_a, pheno_a) %>% 
+  mutate(sigs = if_else(adjusted < 0.05, "significant", "not-significant") ) %>% 
+  ggplot(., aes(x = estimate, y = variable, col = sigs))+
+  geom_point()+
+  scale_color_manual(values = c("gray", "red"))+
+  scale_x_continuous(limits = c(-0.7, 0.7))+
+  geom_vline(xintercept = 0, col = "gray", linetype = "dashed")+
+  geom_pointrange(aes(xmin = estimate - std.error , xmax = estimate + std.error))+
+  ggpubr::theme_classic2()+
+  facet_wrap(~clock_val)+
+  theme(legend.position="top")
+
+rbind(CD4T_a, CD8T_a, Mono_a, NK_a, PlasmaBlast_a, Gran_a) %>% 
+  mutate(sigs = if_else(adjusted < 0.05, "significant", "not-significant") ) %>% 
+  ggplot(., aes(x = estimate, y = variable, col = sigs))+
+  geom_point()+
+  scale_color_manual(values = c("gray", "red"))+
+  #  scale_x_continuous(limits = c(-0.7, 0.7))+
+  geom_vline(xintercept = 0, col = "gray", linetype = "dashed")+
+  geom_pointrange(aes(xmin = estimate - std.error , xmax = estimate + std.error))+
+  ggpubr::theme_classic2()+
+  facet_wrap(~clock_val)+
+  theme(legend.position="top")
+
+```
+

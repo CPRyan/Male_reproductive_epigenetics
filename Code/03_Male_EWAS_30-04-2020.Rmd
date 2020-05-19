@@ -1,0 +1,225 @@
+---
+title: "Male_EWAS"
+author: "Calen P. Ryan"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+Originally written April 30th, 2020
+
+# Setup: 
+
+## Options 
+```{r set options}
+knitr::opts_chunk$set(tidy = TRUE, fig.width=10, fig.height=8) 
+```
+
+## Establishe here()
+```{r establish here}
+here::here()
+```
+
+## General Packages - messages hidden
+```{r load general packages, warning = F, message = F}
+library(tidyverse) # loads ggplot, tidyr, readr, dplyr, purrr, forcats, tibble, stringr
+library(haven) # Used to load different datatypes, like .DTA or .dat
+library(readr) # Also used to read different data types
+library(sjlabelled) # as_factor, as_character
+library(here)
+library(knitr)
+library(kableExtra)
+```
+
+## Bioconductor packages - messages hidden
+```{r load bioconductor packages, warning = F, message = F}
+library(limma)
+library(Biobase)
+```
+
+
+# Load DNAm Data
+
+## Select men with data
+```{r}
+men_w_eage <-read_csv(here::here("Data/Other", "men_w_eage.csv")) %>% 
+  mutate(uncchdid = as_character(uncchdid))
+```
+## Get Mvals
+```{r}
+mvals <-data.table::fread(file = here::here("Data/DNAm", "mvals_cebu_final_Xincl.csv"),
+                  select = c("V1", men_w_eage$uncchdid, "20727_R2")) 
+
+mvals <-mvals %>% column_to_rownames("V1")
+
+```
+Don't worry bout the error - since 20727 is a replicate, the name doesn't match. I add it manually. 
+
+## Filter to 5% variable for MEN
+```{r, eval= FALSE}
+# Loads the function for beta2m and m2beta
+source(here::here("Code/EWAS", "EWAS_functions.R"))
+
+# Originally used to calculate 5 percent variable. But loads as names_var_probes below. 
+# source(here("Code/functions", "b-val_filter_5percent.R"))
+
+```
+
+# Five Percent probes for men only: 142,777 rows
+```{r}
+names_var_probes <-read_csv( here::here("Data/DNAm", "names_var_probes_menonly_xyincl.csv") )
+```
+
+## EWAS
+### T Phenotype EWAS
+```{r}
+source(here::here("/Code/EWAS", "t_phenotype_ewas.R"))
+
+amt_summary
+pmt_summary
+father_summary
+hhkids_summary
+icpcfat_summary
+rgrip_summary
+blood_t_summary
+
+```
+
+### Reproductive Effort EWAS
+```{r }
+source(here::here("/Code/EWAS", "repro_phenotype_ewas.R"))
+
+romantic_summary
+sexinter_summary
+presrela_summary
+numbsex_summary
+new_numbpreg_summary
+```
+
+### Anthropometric EWAS
+```{r anthro ewas}
+source(here::here("/Code/EWAS", "anthro_phenotype_ewas.R"))
+
+height_summary
+bmi_summary
+arm_musc_area_summary
+skinfold_sum_summary
+whr_summary
+```
+
+
+# Load Annotation 
+```{r}
+annotation <- read.csv(here::here("/Data/DNAm", "annotation_all.csv"), header = TRUE, nrows = 5e5) 
+
+names(annotation)[1] <-"probe"
+
+```
+
+
+## Annotation for blood T
+```{r}
+blood_t_annot <-merge_annot(blood_t_toptable, annotation, pval = 0.1)
+```
+## Check out relationships
+```{r}
+
+dnam_t <-peep_dnam_pheno(top_annotation_file = blood_t_annot, pheno_file = testost)
+ 
+dnam_t %>% 
+  ggplot(., aes(x = log_blood_t , y = value, group = probe, color = probe))+
+  geom_point(alpha = 0.3)+
+  stat_smooth(geom = "line", alpha = 0.5)+
+  ggpubr::theme_pubr()+
+  theme(legend.position = "none")
+
+dnam_t %>% 
+  filter(probe %in% 
+           c(blood_t_annot %>% 
+           top_n(n = 14, wt = P.Value) %>% 
+           pull(probe) )) %>% 
+  ggplot(., aes(x = log_blood_t , y = value, group = probe, color = probe))+
+  geom_point(alpha = 0.3)+
+  stat_smooth(n = 4, geom = "line", alpha = 0.5)+
+  ggpubr::theme_pubr()+
+  theme(legend.position = "none")
+```
+
+
+
+### Annotation for numbsex and numbpreg
+```{r}
+numbsex_annot <-merge_annot(numbsex_toptable, annotation, pval = 0.1)
+new_numbpreg_annot <-merge_annot(new_numbpreg_toptable, annotation, pval = 0.1)
+
+```
+
+```{r}
+dnam_numbsex <-peep_dnam_pheno(top_annotation_file = numbsex_annot, pheno_file = repro)
+dnam_new_numbpreg <-peep_dnam_pheno(top_annotation_file = new_numbpreg_annot, pheno_file = repro)
+
+dnam_numbsex %>% 
+  ggplot(., aes(x = numbsex , y = value, group = probe, color = probe))+
+  geom_point(alpha = 0.3)+
+  stat_smooth(geom = "line", alpha = 0.5)+
+  ggpubr::theme_pubr()+
+  theme(legend.position = "none")
+  
+
+dnam_new_numbpreg %>% 
+  ggplot(., aes(x = new_numbpreg , y = value, group = probe, color = probe))+
+  geom_point(alpha = 0.3)+
+  stat_smooth(geom = "line", alpha = 0.5)+
+  ggpubr::theme_pubr()+
+  theme(legend.position = "none")
+```
+
+
+
+# All variables sites
+
+## Five percent probes for men and women: 143,052 rows
+```{r}
+names_var_probes <-read_csv( here::here("Data/DNAm", "names_var_probes_m_and_f_xyincl.csv") )
+```
+
+# EWAS
+## T Phenotype EWAS
+```{r}
+source(here::here("/Code/EWAS", "t_phenotype_ewas.R"))
+
+amt_summary
+pmt_summary
+father_summary
+hhkids_summary
+icpcfat_summary
+rgrip_summary
+blood_t_summary
+
+```
+
+## Reproductive Effort EWAS
+```{r repro ewas}
+source(here::here("/Code/EWAS", "repro_phenotype_ewas.R"))
+
+romantic_summary
+sexinter_summary
+presrela_summary
+numbsex_summary
+new_numbpreg_summary
+```
+
+## Anthropometric EWAS
+```{r}
+source(here::here("/Code/EWAS", "anthro_phenotype_ewas.R"))
+
+height_summary
+bmi_summary
+arm_musc_area_summary
+skinfold_sum_summary
+whr_summary
+```
+
+
+

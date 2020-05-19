@@ -1,0 +1,212 @@
+---
+title: "01_Exploratory"
+author: "Calen P. Ryan"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    code_folding: hide
+    
+---
+Originally written April 13th, 2020
+
+# Setup
+
+---
+
+## Setup: Options 
+```{r}
+knitr::opts_chunk$set(tidy = TRUE, fig.width=10, fig.height=8) 
+```
+
+
+## Setup: Packages - messages hidden
+```{r, warning = F, message = F}
+library(tidyverse) # The tidyverse, baby
+library(haven) # Used to load different datatypes, like .DTA or .dat
+library(readr) # Also used to read different data types
+library(lubridate) # Working with dates
+library(expss) # 
+library(sjlabelled) # as_factor, as_character
+library(vcd)## used for estimating goodness of fit for poisson distribution
+library(here)
+```
+
+
+# Load Data
+
+```{r, warning = FALSE}
+source(here("Code/survey_measures/01a_anthro.R"))
+# source(here("Code/survey_measures/01b_physact.R"))
+source(here("Code/survey_measures/01c_repro.R"))
+source(here("Code/survey_measures/01d_health.R"))
+source(here("Code/survey_measures/01e_testost.R"))
+source(here("Code/survey_measures/01f_clocks.R"))
+```
+
+# Anthropometrics
+```{r}
+clock_anthro <-left_join(clocks, anthro, by = "uncchdid")
+
+
+clock_anthro %>%
+  select( bmi, whr, arm_musc_area, skinfold_sum, IEAA, EEAA, DNAmPhenoAgeAdjAge, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+
+```
+
+# Health
+See also "testost" and "anthro" for measures of ic percent fat, kcal food consumed, other measures of fatness etc.
+```{r}
+clock_health <-left_join(clocks, health, by = "uncchdid")
+
+
+clock_health %>%
+  select(smoke, ofensmok, drink, oftendri, IEAA, EEAA, DNAmPhenoAgeAdjAge, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+
+# Reproduction
+
+```{r}
+clock_repro <-left_join(clocks, repro, by = "uncchdid")
+
+
+
+clock_repro %>%
+  select(ageroman, agesexin, agecrush, agedate, agecourt, IEAA, EEAA, DNAmPhenoAgeAdjAge, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+
+```
+```{r}
+clock_repro %>%
+  select(romantic, sexinter, presrela, evermar, numbsex, new_numbpreg, IEAA, EEAA, DNAmPhenoAgeAdjAge, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+```{r}
+clock_repro %>%
+  select(pairbond_score, sexactivity_score, risksex_score, IEAA, EEAA, DNAmPhenoAgeAdjAge, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+```{r}
+clock_repro %>%
+  select(presrela, numbsex, CD8T:Gran, PlasmaBlast) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+
+# Testosterone:
+
+```{r}
+clock_testost <-left_join(clocks, testost, by = "uncchdid")
+
+
+
+clock_testost %>%
+  select(amt05, pmt05, rightgrip_mean, leftgrip_mean, allele1_num, IEAA, EEAA, AgeAccelerationResidual, AgeAccelerationResidual, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+
+```
+
+Grip strength shows some interesting qualities. 
+PMT and AMT do not
+Men with > grip strength may have more physical work, develop/age faster. 
+
+```{r}
+clock_testost %>%
+  select(rightgrip_mean, leftgrip_mean, fath05c, anyoffspring05, IEAA, EEAA, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+
+```{r}
+clock_testost %>%
+  select(amt09, pmt09, fath09c, anyoffspring09, maristat09, IEAA, EEAA,  DNAmPhenoAgeAdjAge, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+```{r}
+clock_testost %>%
+  select(amt05, pmt05, rightgrip_mean, leftgrip_mean, CD8T:Gran, PlasmaBlast) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+```{r}
+clock_testost %>%
+  select(ickcal05, crowd05, icpcfat05, IEAA, EEAA, DNAmPhenoAgeAdjAge, DNAmGrimAgeAdjAge) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+
+```{r}
+clock_testost %>%
+  select(ickcal05, crowd05, icpcfat05, CD8T:Gran, PlasmaBlast) %>%
+  psych::pairs.panels(.,method = "pearson", # correlation method
+                      hist.col = "gray80",
+                      density = TRUE,  # show density plots
+                      ellipses = TRUE,
+                      stars = TRUE, # show correlation ellipses
+                      cex.cor = 1
+  )
+```
+

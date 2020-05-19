@@ -1,0 +1,757 @@
+---
+title: "Reproductive Status DNAm Analysis for EMPH"
+author: "Calen P. Ryan"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    theme: yeti
+    toc: yes
+    toc_depth: 5
+editor_options: 
+  chunk_output_type: inline
+---
+I added a correction that includes the correct pregord for parity to see if pregord tells us antying.
+Many nulliparous women had pregord of 1 due to 2007 sample. This is corrected.
+
+
+
+
+# Setup
+
+---
+
+## Load all methylation data and packages
+
+Using source code and ff package for loading mvals data.frame
+```{r Load data, results = "hide", echo = FALSE, warning = FALSE, message = FALSE, cached = TRUE}
+library('readstata13')
+library(tidyverse)
+library("limma"); 
+library("Biobase")
+library(knitr)
+library(kableExtra)
+library(gplots)
+library(here)
+
+library(dendextend)
+library(ggdendro)
+
+# Load M-vals: ---- 
+
+# FULL M-vals No correction
+# source("/home/cpr183/Basic-Scripts/Load_mvals-NoCorrection.R", echo = TRUE)
+
+# Full M-vals Corrected
+source("/home/cpr183/Basic-Scripts/Load_mvals.R", echo = TRUE)
+
+
+# Variable 5%
+source("/home/cpr183/Basic-Scripts/Load_5%var_mvals_ProbesOnly.R", echo = TRUE)
+
+```
+
+
+## Load reproductive status data and labels and extract those in study:
+
+### Load the repro.final
+```{r}
+
+repro <-read_csv("/home/cpr183/Parity_Pregnancy/Data/repro.final.csv")
+
+labels <-readRDS("/home/cpr183/Parity_Pregnancy/Data/repro.final.labels.rds")
+
+# Should you wish to look at the labelled variables. Quite a few are missing...
+# str(labels, list.len=ncol(repro))
+
+```
+
+# Parity correct for nulliparous
+```{r}
+repro %>% 
+  filter(reprostat == "nulliparous",!is.na(pregord))
+# Some nulliparous women have pregord 1 in here (because pregord = 1 in 2007)
+
+repro %>% 
+  mutate(pregord = if_else(reprostat == "nulliparous", 
+                           0, 
+                           pregord)) %>% 
+  group_by(reprostat, pregord) %>% 
+  count() 
+# Yes this looks right. 
+
+
+repro <-repro %>% 
+  mutate(pregord = if_else(reprostat == "nulliparous", 
+                           0, 
+                           pregord))
+```
+
+### Extract women with DNAm data
+```{r}
+# This should be a function!
+ids <-substr(names(mvals)[-1], 2, 6)
+
+repro <-repro %>% 
+  filter(uncchdid %in% c(ids))
+
+dim(repro)
+# It doesn't change here as I used DNAm to figure out who I needed repro data for.
+```
+
+### Import genetic data
+
+These are the first two principle components derived by Sarah Moore and used for McDade et al. 2019 AJPA.
+```{r}
+
+load("/home/cpr183/ch_assets/Data/CEBU_MDS2(1).RData")
+# MDS2
+
+genetic <-rownames_to_column(MDS2, var = "uncchdid"); rm(MDS2)
+
+```
+
+
+### Import Smoking status
+
+
+```{r}
+load("/home/cpr183/ch_assets/Data/CEBU_pheno_with_smoking.RData")
+# pheno_extended
+
+smoker <-pheno_extended %>% 
+  select(uncchdid, smoker)
+
+rm(pheno_extended)
+```
+
+### Import SES3 variable
+
+This is the same SES variable used in Ryan et al. 2018 Scientific Reports. I did not calculate these myself and unfortunately still have not checked this yet. Talk to Dan and read our correspondances on this.
+```{r warning=FALSE}
+
+SES3 <-read.dta13(here("/Data/2017-12-01 file for Calen.dta"), missing.type= ,generate.factors = T) %>% 
+  select(uncchdid, SES3, icage05_blood) 
+
+```
+
+
+## Merge to create repro.extra
+```{r}
+extra <-plyr::join_all(list(genetic, SES3, smoker), by='uncchdid', type='left')
+rm(genetic, SES3, smoker)
+
+repro$uncchdid <-as.character(repro$uncchdid)
+
+repro.extra <-left_join(repro, extra, by = "uncchdid"); 
+rm(extra)
+
+
+repro.extra$reprostat <-as_factor(repro.extra$reprostat)
+
+repro.extra$reprostat <-plyr::revalue(repro.extra$reprostat, c("nulliparous" = "Nulliparous",
+                             "pregnant"=  "Pregnant", 
+                             "breastfeeding" = "Breastfeeding", 
+                             "preg_&_bf" = "Pregnant & Breastfeeding", 
+                             "parous" = "Parous"))
+
+
+repro.extra[repro.extra$reprostat == "Pregnant & Breastfeeding", "reprostat"] <-"Pregnant"
+
+repro.extra1 <-repro.extra
+
+repro.extra <-repro.extra %>% 
+  select(uncchdid, reprostat, icage05_blood, MDS1, MDS2, SES3, smoker, pregord) %>%
+  droplevels() %>% 
+  na.omit() 
+```
+
+# CORRECTED Mvals - create matrix
+```{r, results = "hide", echo = FALSE}
+
+repro.extra$reprostat <-droplevels(repro.extra$reprostat)
+
+
+
+include <-repro.extra %>% 
+  select(uncchdid, reprostat, icage05_blood, MDS1, MDS2, SES3, smoker, pregord) %>% 
+  na.omit() %>% 
+  select(uncchdid)
+
+
+# Search for the uncchdid columns within "no.data" object 
+matches <-unique( grep(paste(include$uncchdid, collapse="|"),
+                       names(mvals), value = TRUE))
+
+
+# And extract
+mvals.drop <-mvals[, c(1, which(names(mvals) %in% c(matches)))]
+
+
+
+```
+
+The new matrix has the following dimensions...`r dim(mvals.drop)`
+
+
+```{r}
+################
+rowz <-nrow(mvals.drop)
+colz <-ncol(mvals.drop[,-1])
+
+matrix.corrected <-matrix(sapply(c(mvals.drop[,-1]), as.numeric), nrow= rowz, ncol=colz , byrow=FALSE)
+# So it took at least 11 minutes to create this matrix. Faster than my computer? Maybe not. 
+
+matrix.corrected[1:4,1:4]
+############
+
+rownames(matrix.corrected) <-mvals[,1]
+colnames(matrix.corrected) <-names(mvals.drop[,-1])
+
+
+# Are mvals for a given row and column consistent between datasets (mvals.uncor and mvals.drop)?
+# Check to make sure:
+#mvals[mvals$probe =="cg00000029", "X23233"]
+#matrix.corrected["cg00000029", "X23233"]
+
+
+mvals[mvals$probe =="cg03340466", "X23104"]
+matrix.corrected["cg03340466", "X23104"]
+
+#  Ok. I now have the matrix. What next? 
+#  - Design matrix.
+#  - Run limma
+#  - What else, man? 
+```
+
+```{r}
+# colnames(matrix)
+# focals2$uncchdid
+identical(substr(colnames(matrix.corrected),2,6), repro.extra$uncchdid)
+
+
+# Reorder:
+x <- substr(colnames(matrix.corrected),2,6)
+
+repro.extra <-repro.extra %>%
+  slice(match(x, uncchdid))
+
+
+identical(substr(colnames(matrix.corrected),2,6), repro.extra$uncchdid)
+# Good!
+
+```
+
+
+
+# PARITY: Run the CORRECTED EWAS
+```{r}
+
+repro.extra %>% 
+  select(reprostat, pregord)
+
+# Setup the design matrix. ---- 
+design <- model.matrix(~icage05_blood + MDS1 + MDS2 + SES3 + smoker + reprostat * pregord, data = repro.extra);
+
+
+
+
+dim(design)
+dim(matrix.corrected)
+
+
+# Run the EWAS and smooth the variance ---- 
+repro.cor.ewas <-lmFit(matrix.corrected, design, na.action = na.omit)
+#repro.cor.ewas <- contrasts.fit(repro.cor.ewas, contrast.matrix) 
+repro.cor.ewas <- eBayes(repro.cor.ewas)
+repro.cor.ewas.var5 <-repro.cor.ewas[c(mvals.var5[,1]), ]
+
+# Pull only probes with >5% variability ---- 
+repro.cor.ewas.var5.results <-decideTests(repro.cor.ewas.var5, adjust.method = "BH", p.value = 0.05)
+
+# Summary data ---- 
+summary(repro.cor.ewas.var5.results) %>%
+  kable("html") %>%
+  kable_styling()
+# Ok, for all of them there are SOME significantly different probes...
+
+```
+
+
+
+
+
+
+
+# CORRECTED Mvals - create matrix
+```{r, results = "hide", echo = FALSE}
+
+
+repro.extra1 <-repro.extra %>% 
+  filter(reprostat == "Parous" | reprostat == "Nulliparous")
+
+repro.extra$reprostat1 <-droplevels(repro.extra$reprostat1)
+
+
+
+include <-repro.extra1 %>% 
+  select(uncchdid, reprostat, icage05_blood, MDS1, MDS2, SES3, smoker, pregord) %>% 
+  na.omit() %>% 
+  select(uncchdid)
+
+
+# Search for the uncchdid columns within "no.data" object 
+matches <-unique( grep(paste(include$uncchdid, collapse="|"),
+                       names(mvals), value = TRUE))
+
+
+# And extract
+mvals.drop <-mvals[, c(1, which(names(mvals) %in% c(matches)))]
+
+
+
+```
+
+The new matrix has the following dimensions...`r dim(mvals.drop)`
+
+
+```{r}
+################
+rowz <-nrow(mvals.drop)
+colz <-ncol(mvals.drop[,-1])
+
+matrix.corrected <-matrix(sapply(c(mvals.drop[,-1]), as.numeric), nrow= rowz, ncol=colz , byrow=FALSE)
+# So it took at least 11 minutes to create this matrix. Faster than my computer? Maybe not. 
+
+matrix.corrected[1:4,1:4]
+############
+
+rownames(matrix.corrected) <-mvals[,1]
+colnames(matrix.corrected) <-names(mvals.drop[,-1])
+
+
+# Are mvals for a given row and column consistent between datasets (mvals.uncor and mvals.drop)?
+# Check to make sure:
+#mvals[mvals$probe =="cg00000029", "X23233"]
+#matrix.corrected["cg00000029", "X23233"]
+
+
+mvals[mvals$probe =="cg03340466", "X23104"]
+matrix.corrected["cg03340466", "X23104"]
+
+#  Ok. I now have the matrix. What next? 
+#  - Design matrix.
+#  - Run limma
+#  - What else, man? 
+```
+
+```{r}
+# colnames(matrix)
+# focals2$uncchdid
+identical(substr(colnames(matrix.corrected),2,6), repro.extra1$uncchdid)
+
+
+# Reorder:
+x <- substr(colnames(matrix.corrected),2,6)
+
+repro.extra <-repro.extra1 %>%
+  slice(match(x, uncchdid))
+
+
+identical(substr(colnames(matrix.corrected),2,6), repro.extra1$uncchdid)
+# Good!
+
+```
+
+
+
+# PARITY: Run the CORRECTED EWAS
+```{r}
+
+repro.extra1 %>% 
+  select(reprostat, pregord)
+
+# Setup the design matrix. ---- 
+design <- model.matrix(~icage05_blood + MDS1 + MDS2 + SES3 + smoker + as.factor(pregord), data = repro.extra1);
+
+
+
+
+dim(design)
+dim(matrix.corrected)
+
+
+# Run the EWAS and smooth the variance ---- 
+repro.cor.ewas <-lmFit(matrix.corrected, design, na.action = na.omit)
+#repro.cor.ewas <- contrasts.fit(repro.cor.ewas, contrast.matrix) 
+repro.cor.ewas <- eBayes(repro.cor.ewas)
+repro.cor.ewas.var5 <-repro.cor.ewas[c(mvals.var5[,1]), ]
+
+# Pull only probes with >5% variability ---- 
+repro.cor.ewas.var5.results <-decideTests(repro.cor.ewas.var5, adjust.method = "BH", p.value = 0.05)
+
+# Summary data ---- 
+summary(repro.cor.ewas.var5.results) %>%
+  kable("html") %>%
+  kable_styling()
+# Ok, for all of them there are SOME significantly different probes...
+
+```
+
+
+
+# CORRECTED Mvals - create matrix
+```{r, results = "hide", echo = FALSE}
+
+
+repro.extra2 <-repro.extra %>% 
+  filter(reprostat == "Parous")
+
+repro.extra$reprostat2 <-droplevels(repro.extra$reprostat2)
+
+
+
+include <-repro.extra2 %>% 
+  select(uncchdid, reprostat, icage05_blood, MDS1, MDS2, SES3, smoker, pregord) %>% 
+  na.omit() %>% 
+  select(uncchdid)
+
+
+# Search for the uncchdid columns within "no.data" object 
+matches <-unique( grep(paste(include$uncchdid, collapse="|"),
+                       names(mvals), value = TRUE))
+
+
+# And extract
+mvals.drop <-mvals[, c(1, which(names(mvals) %in% c(matches)))]
+
+
+
+```
+
+The new matrix has the following dimensions...`r dim(mvals.drop)`
+
+
+```{r}
+################
+rowz <-nrow(mvals.drop)
+colz <-ncol(mvals.drop[,-1])
+
+matrix.corrected <-matrix(sapply(c(mvals.drop[,-1]), as.numeric), nrow= rowz, ncol=colz , byrow=FALSE)
+# So it took at least 11 minutes to create this matrix. Faster than my computer? Maybe not. 
+
+matrix.corrected[1:4,1:4]
+############
+
+rownames(matrix.corrected) <-mvals[,1]
+colnames(matrix.corrected) <-names(mvals.drop[,-1])
+
+
+# Are mvals for a given row and column consistent between datasets (mvals.uncor and mvals.drop)?
+# Check to make sure:
+#mvals[mvals$probe =="cg00000029", "X23233"]
+#matrix.corrected["cg00000029", "X23233"]
+
+
+mvals[mvals$probe =="cg03340466", "X23104"]
+matrix.corrected["cg03340466", "X23104"]
+
+#  Ok. I now have the matrix. What next? 
+#  - Design matrix.
+#  - Run limma
+#  - What else, man? 
+```
+
+```{r}
+# colnames(matrix)
+# focals2$uncchdid
+identical(substr(colnames(matrix.corrected),2,6), repro.extra2$uncchdid)
+
+
+# Reorder:
+x <- substr(colnames(matrix.corrected),2,6)
+
+repro.extra2 <-repro.extra2 %>%
+  slice(match(x, uncchdid))
+
+
+identical(substr(colnames(matrix.corrected),2,6), repro.extra2$uncchdid)
+# Good!
+
+```
+
+
+
+# PARITY: Run the CORRECTED EWAS
+```{r}
+
+# Setup the design matrix. ---- 
+design <- model.matrix(~0 + icage05_blood + MDS1 + MDS2 + SES3 + smoker + pregord, data = repro.extra2);
+
+
+
+
+dim(design)
+dim(matrix.corrected)
+
+
+# Run the EWAS and smooth the variance ---- 
+repro.cor.ewas <-lmFit(matrix.corrected, design, na.action = na.omit)
+#repro.cor.ewas <- contrasts.fit(repro.cor.ewas, contrast.matrix) 
+repro.cor.ewas <- eBayes(repro.cor.ewas)
+repro.cor.ewas.var5 <-repro.cor.ewas[c(mvals.var5[,1]), ]
+
+# Pull only probes with >5% variability ---- 
+repro.cor.ewas.var5.results <-decideTests(repro.cor.ewas.var5, adjust.method = "BH", p.value = 0.05)
+
+# Summary data ---- 
+summary(repro.cor.ewas.var5.results) %>%
+  kable("html") %>%
+  kable_styling()
+# Ok, for all of them there are SOME significantly different probes...
+
+```
+
+# Trimester/Gestation
+
+```{r}
+repro.weeks <-repro.extra1 %>% 
+  filter(was.preg == "TRUE") %>% 
+  filter(!is.na(preg.weeks))
+
+```
+
+```{r}
+repro.weeks %>% 
+  ggplot(., aes(x = preg.weeks))+
+  geom_histogram()
+
+repro.weeks %>% 
+  filter(preg.weeks > 60)
+```
+
+
+
+# CORRECTED Mvals - create matrix
+```{r, results = "hide", echo = FALSE}
+include <-repro.weeks %>% 
+  select(uncchdid, preg.weeks, icage05_blood, MDS1, MDS2, SES3, smoker, pregord) %>% 
+  na.omit() %>% 
+  select(uncchdid)
+
+
+# Search for the uncchdid columns within "no.data" object 
+matches <-unique( grep(paste(include$uncchdid, collapse="|"),
+                       names(mvals), value = TRUE))
+
+
+# And extract
+mvals.drop <-mvals[, c(1, which(names(mvals) %in% c(matches)))]
+
+```
+
+
+```{r}
+################
+rowz <-nrow(mvals.drop)
+colz <-ncol(mvals.drop[,-1])
+
+matrix.corrected <-matrix(sapply(c(mvals.drop[,-1]), as.numeric), nrow= rowz, ncol=colz , byrow=FALSE)
+# So it took at least 11 minutes to create this matrix. Faster than my computer? Maybe not. 
+
+matrix.corrected[1:4,1:4]
+############
+
+rownames(matrix.corrected) <-mvals[,1]
+colnames(matrix.corrected) <-names(mvals.drop[,-1])
+
+
+# Are mvals for a given row and column consistent between datasets (mvals.uncor and mvals.drop)?
+# Check to make sure:
+#mvals[mvals$probe =="cg00000029", "X23233"]
+#matrix.corrected["cg00000029", "X23233"]
+
+
+mvals[mvals$probe =="cg03340466", "X22417"]
+matrix.corrected["cg03340466", "X22417"]
+
+#  Ok. I now have the matrix. What next? 
+#  - Design matrix.
+#  - Run limma
+#  - What else, man? 
+```
+
+
+```{r}
+# colnames(matrix)
+# focals2$uncchdid
+identical(substr(colnames(matrix.corrected),2,6), repro.weeks$uncchdid)
+
+
+# Reorder:
+x <- substr(colnames(matrix.corrected),2,6)
+
+repro.weeks <-repro.weeks %>%
+  slice(match(x, uncchdid))
+
+
+identical(substr(colnames(matrix.corrected),2,6), repro.weeks$uncchdid)
+# Good!
+
+```
+# PregWeeks: Run the CORRECTED EWAS
+```{r}
+
+# Setup the design matrix. ---- 
+design <- model.matrix(~icage05_blood + MDS1 + MDS2 + SES3 + preg.weeks, data = repro.weeks);
+
+
+
+
+dim(design)
+dim(matrix.corrected)
+
+
+# Run the EWAS and smooth the variance ---- 
+repro.cor.ewas <-lmFit(matrix.corrected, design, na.action = na.omit)
+#repro.cor.ewas <- contrasts.fit(repro.cor.ewas, contrast.matrix) 
+repro.cor.ewas <- eBayes(repro.cor.ewas)
+repro.cor.ewas.var5 <-repro.cor.ewas[c(mvals.var5[,1]), ]
+
+# Pull only probes with >5% variability ---- 
+repro.cor.ewas.var5.results <-decideTests(repro.cor.ewas.var5, adjust.method = "BH", p.value = 0.05)
+
+# Summary data ---- 
+summary(repro.cor.ewas.var5.results) %>%
+  kable("html") %>%
+  kable_styling()
+# Ok, for all of them there are SOME significantly different probes...
+
+```
+
+
+
+# Breastfeeding
+
+```{r}
+repro.bf <-repro.extra1 %>% 
+  filter(was.lact == "TRUE") %>% 
+  filter(!is.na(days.bt.bld.bf))
+
+```
+
+```{r}
+repro.bf %>% 
+  ggplot(., aes(x = days.bt.bld.bf))+
+  geom_histogram()
+```
+
+
+
+# CORRECTED Mvals - create matrix
+```{r, results = "hide", echo = FALSE}
+include <-repro.bf %>% 
+  select(uncchdid, days.bt.bld.bf, icage05_blood, MDS1, MDS2, SES3, smoker, pregord) %>% 
+  na.omit() %>% 
+  select(uncchdid)
+
+
+# Search for the uncchdid columns within "no.data" object 
+matches <-unique( grep(paste(include$uncchdid, collapse="|"),
+                       names(mvals), value = TRUE))
+
+
+# And extract
+mvals.drop <-mvals[, c(1, which(names(mvals) %in% c(matches)))]
+
+```
+
+
+```{r}
+################
+rowz <-nrow(mvals.drop)
+colz <-ncol(mvals.drop[,-1])
+
+matrix.corrected <-matrix(sapply(c(mvals.drop[,-1]), as.numeric), nrow= rowz, ncol=colz , byrow=FALSE)
+# So it took at least 11 minutes to create this matrix. Faster than my computer? Maybe not. 
+
+matrix.corrected[1:4,1:4]
+############
+
+rownames(matrix.corrected) <-mvals[,1]
+colnames(matrix.corrected) <-names(mvals.drop[,-1])
+
+
+# Are mvals for a given row and column consistent between datasets (mvals.uncor and mvals.drop)?
+# Check to make sure:
+#mvals[mvals$probe =="cg00000029", "X23233"]
+#matrix.corrected["cg00000029", "X23233"]
+
+
+mvals[mvals$probe =="cg03340466", "X23143"]
+matrix.corrected["cg03340466", "X23143"]
+
+#  Ok. I now have the matrix. What next? 
+#  - Design matrix.
+#  - Run limma
+#  - What else, man? 
+```
+
+
+```{r}
+# colnames(matrix)
+# focals2$uncchdid
+identical(substr(colnames(matrix.corrected),2,6), repro.bf$uncchdid)
+
+
+# Reorder:
+x <- substr(colnames(matrix.corrected),2,6)
+
+repro.bf <-repro.bf %>%
+  slice(match(x, uncchdid))
+
+
+identical(substr(colnames(matrix.corrected),2,6), repro.bf$uncchdid)
+# Good!
+
+```
+# BF.weeks: Run the CORRECTED EWAS
+```{r}
+
+repro.bf <-repro.bf %>% 
+  mutate(bf.category=cut(days.bt.bld.bf, breaks=c(Inf, 60 , 30, -Inf), labels=c("high","middle","low"))) 
+
+repro.bf %>% 
+  group_by(bf.category) %>% 
+  count()
+
+# Setup the design matrix. ---- 
+design <- model.matrix(~icage05_blood + MDS1 + MDS2 + SES3 + bf.category, data = repro.bf);
+
+
+
+
+dim(design)
+dim(matrix.corrected)
+
+
+# Run the EWAS and smooth the variance ---- 
+repro.cor.ewas <-lmFit(matrix.corrected, design, na.action = na.omit)
+#repro.cor.ewas <- contrasts.fit(repro.cor.ewas, contrast.matrix) 
+repro.cor.ewas <- eBayes(repro.cor.ewas)
+repro.cor.ewas.var5 <-repro.cor.ewas[c(mvals.var5[,1]), ]
+
+# Pull only probes with >5% variability ---- 
+repro.cor.ewas.var5.results <-decideTests(repro.cor.ewas.var5, adjust.method = "BH", p.value = 0.05)
+
+# Summary data ---- 
+summary(repro.cor.ewas.var5.results) 
+# Ok, for all of them there are SOME significantly different probes...
+
+```
+
+
+# SESSION INFO
+```{r}
+sessionInfo()
+```
