@@ -21,7 +21,7 @@ chk.bld.draw <-left_join(dnam, blood.draw.dates, by = "uncchdid") %>%
 head(chk.bld.draw)
 
 ###########################################################
-health <- read_dta(here::here("Data/zip_child/moreheal.DTA")) %>% 
+health <- read_dta(here::here("Data/zip_child_2005/moreheal.DTA")) %>% 
   rename_all(tolower) %>% 
   select(uncchdid, smoke, ofensmok, drink, oftendri)%>% 
   na_if(., -9) %>% 

@@ -26,9 +26,9 @@ repro <- read_dta(here::here("Data/REPRODUC.DTA"))
 
 mepro <-repro %>% 
   rename_all(tolower) %>% 
-  mutate(date_interview = lubridate::ymd(paste(repro$yrntrvw, repro$montrvw, repro$dayntrvw, sep = "/"))) %>% 
+  mutate(date_interview05 = lubridate::ymd(paste(repro$yrntrvw, repro$montrvw, repro$dayntrvw, sep = "/"))) %>% 
   mutate(uncchdid = as_character(uncchdid)) %>% 
-  select(uncchdid, date_interview, romantic, ageroman, presrela, sexinter, agesexin, numbsex, sexpaid, paidsex, samesexc, forcesex, familysx, groupsex, pregnant, numbpreg, oftensex, sexpast, daysex, maristat, numbmard, agecrush, agedate, agecourt) %>% 
+  select(uncchdid, date_interview05, romantic, ageroman, presrela, sexinter, agesexin, numbsex, sexpaid, paidsex, samesexc, forcesex, familysx, groupsex, pregnant, numbpreg, oftensex, sexpast, daysex, maristat, numbmard, agecrush, agedate, agecourt) %>% 
   na_if(., -9) %>% 
   filter(uncchdid %in% chk.bld.draw[chk.bld.draw$icsex == "1=male",]$uncchdid) 
 
@@ -96,7 +96,7 @@ mepro <-mepro %>%
 # Predict sex partners
 
 mepro <-mepro %>% 
-  select(uncchdid, romantic, ageroman, sexinter, agesexin, agecrush, agedate, agecourt, presrela, evermar, new_numbmarr, numbsex, sexmonth, evermar, new_numbpreg, sexpaid, paidsex, forcesex, familysx, groupsex, pairbond_score, sexactivity_score, risksex_score)
+  select(uncchdid, date_interview05, romantic, ageroman, sexinter, agesexin, agecrush, agedate, agecourt, presrela, evermar, new_numbmarr, numbsex, sexmonth, evermar, new_numbpreg, sexpaid, paidsex, forcesex, familysx, groupsex, pairbond_score, sexactivity_score, risksex_score)
 
 
 mepro %>% 
@@ -112,7 +112,7 @@ mepro %>%
   theme_bw()
 
 
-repro %>% 
+mepro %>% 
   ggplot(., aes(x = pairbond_score, y = sexactivity_score, color = risksex_score))+
   geom_boxplot(aes(group = pairbond_score), color = "gray70")+
   ggbeeswarm::geom_beeswarm(cex = 1.1)+

@@ -33,7 +33,7 @@ head(chk.bld.draw)
 
 # Calculations from: https://nutritionalassessment.mumc.nl/en/anthropometry
 ###################################################################################################################################
-anthro <-read_dta(here::here("Data/zip_child/anthdiet.DTA")) %>% 
+anthro <-read_dta(here::here("Data/zip_child_2005/anthdiet.DTA")) %>% 
   rename_all(tolower)  %>%
   mutate(whr = waist / hip) %>% 
   mutate(tricep_mean = rowMeans(select(., starts_with("tricep")), na.rm = TRUE)) %>%  # mean of 3 measurements in mm
@@ -49,6 +49,31 @@ anthro <-read_dta(here::here("Data/zip_child/anthdiet.DTA")) %>%
 
 
 names(anthro)
+
+# Calculate the density, fat-free mass, etc.
+# Constants from Durnin and Womersley, 1974, (Males, Age 20-29)
+# Linear regressionequationsfor the estimation of body density x 10^3(kg/m^3)
+# density = c - m x log skinfold
+
+dw_c <-1.1575
+dw_m <-0.0617
+# bfperc = ((4.95/density )-4.5)*100
+# fatmass = (( bfperc *.01)*weight)
+# ffm05 = weight-fatmass
+
+anthro <-anthro %>% 
+  mutate(logfolds = log(skinfold_sum), 
+         density = dw_c - (dw_m * logfolds), 
+         bfperc = ((4.95/density )-4.5)*100,
+         fatmass = (( bfperc *.01)*weight),
+         fatfree_mass = weight-fatmass)
+
+
+
+
+
+
+
 
 # anthro %>% 
 #   select(-uncchdid, -weight, -armcircm, -waist, -hip, -subscap_mean, -supra_mean, -tricep_mean) %>% 
@@ -92,7 +117,7 @@ names(anthro)
 
 
 anthro_min <-anthro %>% 
-  select(-weight, -armcircm, -waist, -hip, subscap_mean, supra_mean, tricep_mean, skinfold_sum) %>% 
+  select(-weight, -armcircm, -waist, -hip, -skinfold_sum, -logfolds, -density) %>% 
   as_character(uncchdid)
 
 
@@ -107,8 +132,10 @@ anthro_min <-anthro %>%
 
 
 
+
+
 #######
 anthro <-anthro_min; rm(anthro_min)
 
 ggplot(anthro) +
-  geom_histogram(aes(x = whr))
+  geom_histogram(aes(x = bfperc))

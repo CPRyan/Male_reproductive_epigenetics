@@ -23,7 +23,7 @@ chk.bld.draw <-left_join(dnam, blood.draw.dates, by = "uncchdid") %>%
 head(chk.bld.draw)
 
 
-physact2 <- read_dta(here::here("Data/zip_child/physact2.DTA")) %>% 
+physact2 <- read_dta(here::here("Data/zip_child_2005/physact2.DTA")) %>% 
   rename_all(tolower) %>% 
   na_if(., -9) %>%   
   filter(uncchdid %in% chk.bld.draw[chk.bld.draw$icsex == "1=male",]$uncchdid)
