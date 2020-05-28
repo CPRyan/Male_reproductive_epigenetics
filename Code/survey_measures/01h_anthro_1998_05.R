@@ -99,7 +99,8 @@ anthro_time <-anthro_time %>%
   mutate(muscle_accretion = height - height98,
          height_accretion = fatfree_mass - fatfree_mass98, 
          arm_accretion = arm_musc_area - arm_musc_area98, 
-         fat_accretion = fatmass - fatmass98)
+         fat_accretion = fatmass - fatmass98, 
+         time_bt_98_05 = blood.draw.date - date_interview98)
 
 
 
@@ -109,9 +110,12 @@ anthro_time_stacked <-anthro_time %>%
   gather(key = "key", value = "value", c(height98, height, fatfree_mass98, fatfree_mass, arm_musc_area98, arm_musc_area)) %>% 
   mutate(facetz = if_else(str_detect(key, "height"), "height", 
                           if_else(str_detect(key, "musc"), "arm_muscle", 
-                                  "fatfree_mass"))) %>% 
-  select(uncchdid, key, value, facetz)
+                                  "fatfree_mass"))) %>%
+  mutate(date = if_else(str_detect(key, "98"), date_interview98, blood.draw.date)) %>% 
+  select(uncchdid, key, value, facetz, date)
 
+
+  
 anthro_time_stacked %>% 
   ggplot(., aes(x = reorder(key, desc(key)), y = value, group = uncchdid, color = facetz))+
   geom_boxplot(aes(group = key), color = "gray", alpha = 0.1)+
@@ -121,3 +125,12 @@ anthro_time_stacked %>%
   scale_color_brewer(palette = "Set1")+
   ggpubr::theme_pubr()
 
+
+anthro_time_stacked  %>% 
+  ggplot(., aes(x = date, y = value, group = uncchdid, color = facetz))+
+  geom_boxplot(aes(group = key), color = "gray", alpha = 0.1)+
+  geom_point(alpha = 0.5)+
+  geom_line(alpha = 0.5)+
+  facet_wrap(~facetz, scales = "free")+
+  scale_color_brewer(palette = "Set1")+
+  ggpubr::theme_pubr()

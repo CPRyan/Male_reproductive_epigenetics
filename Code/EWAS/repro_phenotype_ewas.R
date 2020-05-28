@@ -58,8 +58,8 @@ names(r_shuffle)
 
 ################
 # P value for cutoff
-pvally <- 0.1
-
+pval_cutoff <- 0.1
+pval_all <-1
 ################
 
 
@@ -73,11 +73,11 @@ design <- model.matrix(~ romantic + age_blood05 + smoke + drink +  icpc1 + icpc2
 lmfit_results <-limma_fit(generic_matrix = r_matrix_drop, generic_design = design)
 
 # Check the summary table
-romantic_summary <-limma_summary(lmfit_results, pvally = pvally)
+romantic_summary <-limma_summary(lmfit_results, pvally = pval_cutoff)
 romantic_summary
 
 # Check the toptable. 
-romantic_toptable <-limma_toptable(lmfit_results, coeffy = "romantic", pvally = pvally)
+romantic_toptable <-limma_toptable(lmfit_results, coeffy = "romantic", pvally = pval_all)
 
 
 ################
@@ -89,11 +89,11 @@ design <- model.matrix(~ sexinter + age_blood05 + smoke + drink +  icpc1 + icpc2
 lmfit_results <-limma_fit(generic_matrix = r_matrix_drop, generic_design = design)
 
 # Check the summary table
-sexinter_summary <-limma_summary(lmfit_results, pvally = pvally)
+sexinter_summary <-limma_summary(lmfit_results, pvally = pval_cutoff)
 sexinter_summary
 
 # Check the toptable. 
-sexinter_toptable <-limma_toptable(lmfit_results, coeffy = "sexinter", pvally = pvally)
+sexinter_toptable <-limma_toptable(lmfit_results, coeffy = "sexinter", pvally = pval_all)
 
 ################
 # presrela
@@ -104,27 +104,27 @@ design <- model.matrix(~ presrela + age_blood05 + smoke + drink +  icpc1 + icpc2
 lmfit_results <-limma_fit(generic_matrix = r_matrix_drop, generic_design = design)
 
 # Check the summary table
-presrela_summary <-limma_summary(lmfit_results, pvally = pvally)
+presrela_summary <-limma_summary(lmfit_results, pvally = pval_cutoff)
 presrela_summary
 
 # Check the toptable. 
-presrela_toptable <-limma_toptable(lmfit_results, coeffy = "presrela", pvally = pvally)
+presrela_toptable <-limma_toptable(lmfit_results, coeffy = "presrela", pvally = pval_all)
 
 
 ################
 # numbsex
 ################
-design <- model.matrix(~ numbsex + age_blood05 + smoke + drink +  icpc1 + icpc2 + icpc3 + bmi + SEAsum_83_05, data = r_shuffle);
+design <- model.matrix(~ log(numbsex+1) + age_blood05 + smoke + drink +  icpc1 + icpc2 + icpc3 + bmi + SEAsum_83_05, data = r_shuffle);
 
 # Use limma_fit function
 lmfit_results <-limma_fit(generic_matrix = r_matrix_drop, generic_design = design)
 
 # Check the summary table
-numbsex_summary <-limma_summary(lmfit_results, pvally = pvally)
+numbsex_summary <-limma_summary(lmfit_results, pvally = pval_cutoff)
 numbsex_summary
 
 # Check the toptable. 
-numbsex_toptable <-limma_toptable(lmfit_results, coeffy = "numbsex", pvally = pvally)
+numbsex_toptable <-limma_toptable(lmfit_results, coeffy = "log(numbsex + 1)", pvally = pval_all)
 
 
 ################
@@ -136,17 +136,13 @@ design <- model.matrix(~ new_numbpreg + age_blood05 + smoke + drink +  icpc1 + i
 lmfit_results <-limma_fit(generic_matrix = r_matrix_drop, generic_design = design)
 
 # Check the summary table
-new_numbpreg_summary <-limma_summary(lmfit_results, pvally = pvally)
+new_numbpreg_summary <-limma_summary(lmfit_results, pvally = pval_cutoff)
 new_numbpreg_summary
 
 # Check the toptable. 
-new_numbpreg_toptable <-limma_toptable(lmfit_results, coeffy = "new_numbpreg", pvally = pvally)
+new_numbpreg_toptable <-limma_toptable(lmfit_results, coeffy = "new_numbpreg", pvally = pval_all)
 
 
-
-################
-# annotation for numbpreg
-################
 
 
 

@@ -130,7 +130,9 @@ anthro_min <-anthro %>%
 #   geom_point()
 # # Not good measures
 
-
+anthro_min <-left_join(anthro_min, 
+          chk.bld.draw, 
+          by = 'uncchdid')
 
 
 
@@ -138,4 +140,4 @@ anthro_min <-anthro %>%
 anthro <-anthro_min; rm(anthro_min)
 
 ggplot(anthro) +
-  geom_histogram(aes(x = bfperc))
+  geom_histogram(aes(x = fatfree_mass))

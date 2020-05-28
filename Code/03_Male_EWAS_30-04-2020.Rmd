@@ -104,8 +104,11 @@ source(here::here("/Code/EWAS", "anthro_phenotype_ewas.R"))
 height_summary
 bmi_summary
 arm_musc_area_summary
-skinfold_sum_summary
-whr_summary
+fatfree_mass_summary
+bfperc_summary
+height_acc_summary
+muscle_acc_summary
+arm_acc_summary
 ```
 
 
@@ -127,24 +130,32 @@ blood_t_annot <-merge_annot(blood_t_toptable, annotation, pval = 0.1)
 
 dnam_t <-peep_dnam_pheno(top_annotation_file = blood_t_annot, pheno_file = testost)
  
+
 dnam_t %>% 
   ggplot(., aes(x = log_blood_t , y = value, group = probe, color = probe))+
   geom_point(alpha = 0.3)+
   stat_smooth(geom = "line", alpha = 0.5)+
+  stat_smooth(method = "lm", color = "gray60", alpha = 0.2)+
   ggpubr::theme_pubr()+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  facet_wrap(~probe)
 
-dnam_t %>% 
-  filter(probe %in% 
-           c(blood_t_annot %>% 
-           top_n(n = 14, wt = P.Value) %>% 
-           pull(probe) )) %>% 
-  ggplot(., aes(x = log_blood_t , y = value, group = probe, color = probe))+
-  geom_point(alpha = 0.3)+
-  stat_smooth(n = 4, geom = "line", alpha = 0.5)+
-  ggpubr::theme_pubr()+
-  theme(legend.position = "none")
 ```
+
+## Manhattan for T relationships
+```{r}
+blood_t_annot <-merge_annot(blood_t_toptable, annotation, pval = 1) %>% 
+  mutate(new_chr = as.numeric(CHR),
+         sig_no = if_else(adj.P.Val < 0.1, "sig", "no")) 
+ 
+qqman::qq(blood_t_annot$P.Value, main = "Q-Q plot of EWAS p-values for blood T (logged)",col = "blue4", cex = 1.5, las = 1) 
+
+library(calibrate) # Needed for textxy used in this function
+
+# This function is based on qqman packages function - I wanted to change the colors of the points and insert my gene names (not probe names). 
+CPR_manhattan(blood_t_annot, chr = "new_chr", bp = "MAPINFO", p = "P.Value", snp = "probe", chrlabs = c(1:22, "X", "Y"), highlight = blood_t_annot %>% filter(sig_no == "sig") %>% pull(probe), genomewideline = -log10(1.2e-05), suggestiveline = FALSE, annotatePval = 1.207018e-05, annotateTop = FALSE, gene = "Closest_TSS_gene_name")
+```
+
 
 
 
@@ -159,21 +170,56 @@ new_numbpreg_annot <-merge_annot(new_numbpreg_toptable, annotation, pval = 0.1)
 dnam_numbsex <-peep_dnam_pheno(top_annotation_file = numbsex_annot, pheno_file = repro)
 dnam_new_numbpreg <-peep_dnam_pheno(top_annotation_file = new_numbpreg_annot, pheno_file = repro)
 
-dnam_numbsex %>% 
-  ggplot(., aes(x = numbsex , y = value, group = probe, color = probe))+
-  geom_point(alpha = 0.3)+
-  stat_smooth(geom = "line", alpha = 0.5)+
-  ggpubr::theme_pubr()+
-  theme(legend.position = "none")
+# dnam_numbsex %>% 
+#   ggplot(., aes(x = log(numbsex) , y = value, color = probe))+
+#   geom_point(alpha = 0.3)+
+#   stat_smooth(geom = "line", alpha = 0.5)+
+#   stat_smooth(method = "lm", color = "gray60", alpha = 0.2)+
+#   ggpubr::theme_pubr()+
+#   theme(legend.position = "none")+
+#   facet_wrap(~probe)
   
 
 dnam_new_numbpreg %>% 
   ggplot(., aes(x = new_numbpreg , y = value, group = probe, color = probe))+
   geom_point(alpha = 0.3)+
   stat_smooth(geom = "line", alpha = 0.5)+
+  stat_smooth(method = "lm", color = "gray60", alpha = 0.2)+
   ggpubr::theme_pubr()+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  facet_wrap(~probe)
+
 ```
+
+## Manhattan for numbsex relationships
+```{r}
+numbsex_annot <-merge_annot(numbsex_toptable, annotation, pval = 1) %>% 
+  mutate(new_chr = as.numeric(CHR),
+         sig_no = if_else(adj.P.Val < 0.1, "sig", "no")) 
+
+qqman::qq(numbsex_annot$P.Value, main = "Q-Q plot of EWAS p-values for numbsex",col = "blue4", cex = 1.5, las = 1) 
+
+library(calibrate) # Needed for textxy used in this function
+
+# This function is based on qqman packages function - I wanted to change the colors of the points and insert my gene names (not probe names). 
+CPR_manhattan(numbsex_annot, chr = "new_chr", bp = "MAPINFO", p = "P.Value", snp = "probe", chrlabs = c(1:22, "X", "Y"), highlight = numbsex_annot %>% filter(sig_no == "sig") %>% pull(probe), genomewideline = -log10(1.2e-05), suggestiveline = FALSE, annotatePval = 1.207018e-05, annotateTop = FALSE, gene = "Closest_TSS_gene_name")
+
+```
+
+```{r}
+new_numbpreg_annot <-merge_annot(new_numbpreg_toptable, annotation, pval = 1) %>% 
+  mutate(new_chr = as.numeric(CHR),
+         sig_no = if_else(adj.P.Val < 0.1, "sig", "no")) 
+  
+
+library(calibrate) # Needed for textxy used in this function
+
+# This function is based on qqman packages function - I wanted to change the colors of the points and insert my gene names (not probe names). 
+CPR_manhattan(new_numbpreg_annot, chr = "new_chr", bp = "MAPINFO", p = "P.Value", snp = "probe", chrlabs = c(1:22, "X", "Y"), highlight = new_numbpreg_annot %>% filter(sig_no == "sig") %>% pull(probe), genomewideline = -log10(5.14e-06), suggestiveline = FALSE, annotatePval = 5.150634e-06, annotateTop = FALSE, gene = "Closest_TSS_gene_name")
+
+
+```
+
 
 
 
@@ -200,7 +246,7 @@ blood_t_summary
 ```
 
 ## Reproductive Effort EWAS
-```{r repro ewas}
+```{r}
 source(here::here("/Code/EWAS", "repro_phenotype_ewas.R"))
 
 romantic_summary
@@ -217,9 +263,135 @@ source(here::here("/Code/EWAS", "anthro_phenotype_ewas.R"))
 height_summary
 bmi_summary
 arm_musc_area_summary
-skinfold_sum_summary
-whr_summary
+fatfree_mass_summary
+bfperc_summary
+height_acc_summary
+muscle_acc_summary
+arm_acc_summary
+```
+
+
+# SEX VARIANT sites
+## Load all probes (just use mvals rownames)
+```{r}
+sex_probes <-read_csv(here::here("Data/DNAm", "sex_probes.csv"))
+
+names_var_probes <-sex_probes
+```
+
+# EWAS
+## T Phenotype EWAS
+```{r}
+source(here::here("/Code/EWAS", "t_phenotype_ewas.R"))
+
+amt_summary
+pmt_summary
+father_summary
+hhkids_summary
+icpcfat_summary
+rgrip_summary
+blood_t_summary
+
+```
+
+## Reproductive Effort EWAS
+```{r}
+source(here::here("/Code/EWAS", "repro_phenotype_ewas.R"))
+
+romantic_summary
+sexinter_summary
+presrela_summary
+numbsex_summary
+new_numbpreg_summary
+```
+
+## Anthropometric EWAS
+```{r}
+source(here::here("/Code/EWAS", "anthro_phenotype_ewas.R"))
+
+height_summary
+bmi_summary
+arm_musc_area_summary
+fatfree_mass_summary
+bfperc_summary
+height_acc_summary
+muscle_acc_summary
+arm_acc_summary
 ```
 
 
 
+# All sites
+## Load all probes (just use mvals rownames)
+```{r}
+names_var_probes <-rownames(mvals) %>% data_frame() %>% rename(probe = ".")
+```
+
+# EWAS
+## T Phenotype EWAS
+```{r}
+source(here::here("/Code/EWAS", "t_phenotype_ewas.R"))
+
+amt_summary
+pmt_summary
+father_summary
+hhkids_summary
+icpcfat_summary
+rgrip_summary
+blood_t_summary
+
+```
+
+## zero.one cutoff - Manhattan for T relationships 
+```{r}
+blood_t_annot <-merge_annot(blood_t_toptable, annotation, pval = 1) %>% 
+  mutate(new_chr = as.numeric(CHR),
+         sig_no = if_else(adj.P.Val < 0.1, "sig", "no")) 
+ 
+qqman::qq(blood_t_annot$P.Value, main = "Q-Q plot of EWAS p-values for blood T (logged)",col = "blue4", cex = 1.5, las = 1) 
+
+library(calibrate) # Needed for textxy used in this function
+
+# This function is based on qqman packages function - I wanted to change the colors of the points and insert my gene names (not probe names). 
+CPR_manhattan(blood_t_annot, chr = "new_chr", bp = "MAPINFO", p = "P.Value", snp = "probe", chrlabs = c(1:22, "X", "Y"), highlight = blood_t_annot %>% filter(sig_no == "sig") %>% pull(probe), genomewideline = -log10(1.2e-05), suggestiveline = FALSE, annotatePval = 1.207018e-05, annotateTop = FALSE, gene = "Closest_TSS_gene_name")
+```
+
+## zero.zerofive cutoff Manhattan
+```{r}
+blood_t_annot <-merge_annot(blood_t_toptable, annotation, pval = 1) %>% 
+  mutate(new_chr = as.numeric(CHR),
+         sig_no = if_else(adj.P.Val < 0.05, "sig", "no")) 
+ 
+qqman::qq(blood_t_annot$P.Value, main = "Q-Q plot of EWAS p-values for blood T (logged)",col = "blue4", cex = 1.5, las = 1) 
+
+library(calibrate) # Needed for textxy used in this function
+
+# This function is based on qqman packages function - I wanted to change the colors of the points and insert my gene names (not probe names). 
+CPR_manhattan(blood_t_annot, chr = "new_chr", bp = "MAPINFO", p = "P.Value", snp = "probe", chrlabs = c(1:22, "X", "Y"), highlight = blood_t_annot %>% filter(sig_no == "sig") %>% pull(probe), genomewideline = -log10(1.2e-05), suggestiveline = FALSE, annotatePval = 1.207018e-05, annotateTop = FALSE, gene = "Closest_TSS_gene_name")
+```
+
+
+## Reproductive Effort EWAS
+```{r}
+source(here::here("/Code/EWAS", "repro_phenotype_ewas.R"))
+
+romantic_summary
+sexinter_summary
+presrela_summary
+numbsex_summary
+new_numbpreg_summary
+```
+
+## Anthropometric EWAS
+```{r}
+source(here::here("/Code/EWAS", "anthro_phenotype_ewas.R"))
+
+height_summary
+bmi_summary
+arm_musc_area_summary
+fatfree_mass_summary
+bfperc_summary
+height_acc_summary
+muscle_acc_summary
+arm_acc_summary
+```
